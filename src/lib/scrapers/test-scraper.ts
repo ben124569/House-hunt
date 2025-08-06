@@ -29,7 +29,7 @@ export function testUrlValidation(): void {
   console.log("🧪 Testing URL validation...\n");
   
   // Test valid URLs
-  const allValidUrls = [...TEST_URLS.REALESTATE, ...TEST_URLS.DOMAIN];
+  const allValidUrls: string[] = [...TEST_URLS.REALESTATE, ...TEST_URLS.DOMAIN];
   if (allValidUrls.length === 0) {
     console.log("⚠️ No test URLs provided. Add real property URLs to TEST_URLS for testing.");
   } else {
@@ -47,91 +47,64 @@ export function testUrlValidation(): void {
     const isValid = isValidPropertyUrl(url);
     console.log(`❌ ${url} -> Valid: ${isValid}`);
   });
-  
-  console.log("\n");
 }
 
 /**
- * Test property data extraction
+ * Test property extraction for a single URL
  */
 export async function testPropertyExtraction(url: string): Promise<void> {
-  console.log(`🏠 Testing property extraction for: ${url}\n`);
+  console.log(`\n🏠 Testing property extraction for: ${url}`);
+  console.log("=".repeat(60));
   
   if (!isValidPropertyUrl(url)) {
-    console.error("❌ Invalid URL - cannot test extraction");
+    console.log("❌ Invalid URL format");
     return;
   }
   
   try {
-    console.log("⏳ Starting extraction...");
     const startTime = Date.now();
+    const property = await extractPropertyData(url);
+    const duration = Date.now() - startTime;
     
-    const data = await extractPropertyData(url);
+    console.log(`✅ Extraction completed in ${duration}ms`);
+    console.log(`📍 Address: ${property.address}`);
+    console.log(`💰 Price: ${property.priceDisplay}`);
+    console.log(`🏠 Type: ${property.propertyType}`);
+    console.log(`🛏️ Specs: ${property.bedrooms}BR, ${property.bathrooms}BA, ${property.parking} car`);
     
-    const endTime = Date.now();
-    const duration = (endTime - startTime) / 1000;
-    
-    console.log(`✅ Extraction completed in ${duration}s\n`);
-    
-    // Display extracted data
-    console.log("📊 Extracted Data:");
-    console.log("==================");
-    console.log(`Address: ${data.address}`);
-    console.log(`Suburb: ${data.suburb}, ${data.state} ${data.postcode}`);
-    console.log(`Price: ${data.priceDisplay}`);
-    console.log(`Type: ${data.propertyType}`);
-    console.log(`Bedrooms: ${data.bedrooms} | Bathrooms: ${data.bathrooms} | Parking: ${data.parking}`);
-    console.log(`Land Size: ${data.landSize ? data.landSize + " sqm" : "Not specified"}`);
-    console.log(`Features: ${data.features.length} features found`);
-    console.log(`Images: ${data.images.length} images found`);
-    
-    if (data.agentName) {
-      console.log(`Agent: ${data.agentName}${data.agentAgency ? ` (${data.agentAgency})` : ""}`);
+    if (property.landSize) {
+      console.log(`📐 Land: ${property.landSize} sqm`);
     }
     
-    // Deal breaker analysis
-    console.log("\n⚠️ Deal Breaker Analysis:");
-    console.log("========================");
+    console.log(`📷 Images: ${property.images.length}`);
+    console.log(`🏷️ Features: ${property.features.length}`);
+    
+    if (property.agentName) {
+      console.log(`👤 Agent: ${property.agentName} (${property.agentAgency || 'Unknown agency'})`);
+    }
+    
+    // Test deal breakers
+    console.log("\n🔍 Deal Breaker Analysis:");
     const dealBreakers = [];
-    if (data.hasFloodRisk) dealBreakers.push("Flood risk detected");
-    if (data.hasTwoStories) dealBreakers.push("Two-story property");
-    if (!data.hasCarParking) dealBreakers.push("No car parking");
-    if (!data.hasSolarPanels) dealBreakers.push("No solar panels");
-    if (!data.isDogFriendly) dealBreakers.push("Not dog-friendly");
-    if (data.isMainRoad) dealBreakers.push("Main road location");
-    if (data.hasPowerLines) dealBreakers.push("Overhead power lines");
+    if (property.hasFloodRisk === true) dealBreakers.push("Flood risk");
+    if (property.hasTwoStories === true) dealBreakers.push("Two stories");
+    if (property.hasCarParking === false) dealBreakers.push("No parking");
+    if (property.hasSolarPanels === false) dealBreakers.push("No solar");
+    if (property.isDogFriendly === false) dealBreakers.push("Not dog friendly");
     
     if (dealBreakers.length > 0) {
-      dealBreakers.forEach(issue => console.log(`❌ ${issue}`));
+      console.log(`❌ Deal breakers found: ${dealBreakers.join(", ")}`);
     } else {
       console.log("✅ No obvious deal breakers detected");
     }
     
-    // Sample of description and features
-    console.log("\n📝 Description Sample:");
-    console.log("=====================");
-    console.log(data.description.substring(0, 200) + (data.description.length > 200 ? "..." : ""));
-    
-    console.log("\n🏷️ Features Sample:");
-    console.log("==================");
-    data.features.slice(0, 10).forEach((feature, i) => {
-      console.log(`${i + 1}. ${feature}`);
-    });
-    if (data.features.length > 10) {
-      console.log(`... and ${data.features.length - 10} more features`);
-    }
-    
-    console.log("\n");
-    
   } catch (error) {
-    console.error(`❌ Extraction failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+    console.error(`❌ Extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     
     if (error instanceof PropertyExtractionError) {
       console.error(`   Stage: ${error.stage}`);
       console.error(`   URL: ${error.url}`);
     }
-    
-    console.log("\n");
   }
 }
 
@@ -139,18 +112,50 @@ export async function testPropertyExtraction(url: string): Promise<void> {
  * Run comprehensive tests
  */
 export async function runTests(testUrls: string[] = []): Promise<void> {
-  console.log("🚀 Property Extractor Test Suite");
-  console.log("================================\n");
+  console.log("🧪 Property Extractor Test Suite");
+  console.log("===============================\n");
   
-  // Test URL validation
+  // Run URL validation tests first
   testUrlValidation();
   
   // Test extraction on provided URLs
-  const urlsToTest = testUrls.length > 0 ? testUrls : [
-    ...TEST_URLS.REALESTATE.filter(url => !url.startsWith("//")),
-    ...TEST_URLS.DOMAIN.filter(url => !url.startsWith("//")),
-  ];
+  const validRealestate = (TEST_URLS.REALESTATE as string[]).filter(url => !url.startsWith("//"));
+  const validDomain = (TEST_URLS.DOMAIN as string[]).filter(url => !url.startsWith("//"));
+  const urlsToTest = testUrls.length > 0 ? testUrls : [...validRealestate, ...validDomain];
   
   if (urlsToTest.length === 0) {
     console.log("⚠️ No valid test URLs provided. Add URLs to TEST_URLS or pass them as arguments.");
-    console.log("   Example usage:");\n    console.log("   await runTests(['https://www.realestate.com.au/property-...']);");\n    return;\n  }\n\n  for (const url of urlsToTest) {\n    await testPropertyExtraction(url);\n    \n    // Add delay between requests to be respectful\n    if (urlsToTest.indexOf(url) < urlsToTest.length - 1) {\n      console.log("⏱️ Waiting 3 seconds before next test...");\n      await new Promise(resolve => setTimeout(resolve, 3000));\n    }\n  }\n  \n  console.log("🎉 Test suite completed!");\n}\n\n/**\n * Quick test function for a single URL\n */\nexport async function quickTest(url: string): Promise<void> {\n  await testPropertyExtraction(url);\n}\n\n// Export for CLI usage\nif (require.main === module) {\n  const url = process.argv[2];\n  if (url) {\n    quickTest(url).catch(console.error);\n  } else {\n    runTests().catch(console.error);\n  }\n}
+    console.log("   Example usage:");
+    console.log("   await runTests(['https://www.realestate.com.au/property-...']);");
+    return;
+  }
+
+  for (const url of urlsToTest) {
+    await testPropertyExtraction(url);
+    
+    // Add delay between requests to be respectful
+    if (urlsToTest.indexOf(url) < urlsToTest.length - 1) {
+      console.log("⏱️ Waiting 3 seconds before next test...");
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+  }
+  
+  console.log("🎉 Test suite completed!");
+}
+
+/**
+ * Quick test function for a single URL
+ */
+export async function quickTest(url: string): Promise<void> {
+  await testPropertyExtraction(url);
+}
+
+// Export for CLI usage
+if (require.main === module) {
+  const url = process.argv[2];
+  if (url) {
+    quickTest(url).catch(console.error);
+  } else {
+    runTests().catch(console.error);
+  }
+}

@@ -237,7 +237,7 @@ export const suburbRouter = createTRPCRouter({
         // Create activity log
         await ctx.db.activity.create({
           data: {
-            type: 'SUBURB_RESEARCHED',
+            type: 'SUBURB_ADDED',
             action: `Comprehensive research completed for ${name}${postcode ? ` ${postcode}` : ''}`,
             userId: ctx.session.user.id,
             metadata: {

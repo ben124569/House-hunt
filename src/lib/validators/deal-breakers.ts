@@ -44,11 +44,12 @@ export class DealBreakerValidator {
     const warnings: DealBreakerWarning[] = [];
 
     // Budget check
-    if (property.listingPrice > FAMILY_REQUIREMENTS.maxBudget) {
+    const price = property.priceMax ?? property.priceMin ?? 0;
+    if (price > FAMILY_REQUIREMENTS.maxBudget) {
       violations.push({
         type: "OVER_BUDGET",
         severity: "HIGH",
-        message: `Property is over budget at $${property.listingPrice.toLocaleString()}`,
+        message: `Property is over budget at $${price.toLocaleString()}`,
         details: `Family budget is under $${FAMILY_REQUIREMENTS.maxBudget.toLocaleString()}`,
         autoReject: true,
       });
@@ -88,11 +89,11 @@ export class DealBreakerValidator {
     }
 
     // Car accommodation
-    if (property.carSpaces < FAMILY_REQUIREMENTS.minCarSpaces) {
+    if (property.parking < FAMILY_REQUIREMENTS.minCarSpaces) {
       violations.push({
         type: "INSUFFICIENT_CAR_SPACES",
         severity: "MEDIUM",
-        message: `Only ${property.carSpaces} car space${property.carSpaces === 1 ? '' : 's'}`,
+        message: `Only ${property.parking} car space${property.parking === 1 ? '' : 's'}`,
         details: `Family requires accommodation for ${FAMILY_REQUIREMENTS.minCarSpaces}+ cars`,
         autoReject: true,
       });
@@ -154,11 +155,11 @@ export class DealBreakerValidator {
     }
 
     // Warnings for borderline cases
-    if (property.listingPrice > FAMILY_REQUIREMENTS.maxBudget * 0.95) {
+    if (price > FAMILY_REQUIREMENTS.maxBudget * 0.95) {
       warnings.push({
         type: "NEAR_BUDGET_LIMIT",
         message: "Property is close to budget limit",
-        details: `At ${((property.listingPrice / FAMILY_REQUIREMENTS.maxBudget) * 100).toFixed(1)}% of maximum budget`,
+        details: `At ${((price / FAMILY_REQUIREMENTS.maxBudget) * 100).toFixed(1)}% of maximum budget`,
       });
     }
 
