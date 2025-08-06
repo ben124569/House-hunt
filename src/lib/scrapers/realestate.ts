@@ -1,5 +1,7 @@
 import puppeteer from "puppeteer";
+import { extractPropertyData, isValidPropertyUrl, getWebsiteName, PropertyExtractionError } from "./property-extractor";
 
+// Legacy interface for backward compatibility
 export interface ScrapedProperty {
   address: string;
   suburb: string;
@@ -17,57 +19,41 @@ export interface ScrapedProperty {
   listingUrl: string;
 }
 
+/**
+ * Legacy function for backward compatibility
+ * Uses the new comprehensive extractor but returns data in the old format
+ */
 export async function scrapeRealEstateProperty(url: string): Promise<ScrapedProperty> {
-  // Validate URL
-  if (!url.includes("realestate.com.au")) {
-    throw new Error("Only realestate.com.au URLs are supported");
+  // Validate URL using new validator
+  if (!isValidPropertyUrl(url)) {
+    throw new Error("Only realestate.com.au and domain.com.au URLs are supported");
   }
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
-
   try {
-    const page = await browser.newPage();
+    const extractedData = await extractPropertyData(url);
     
-    // Set user agent to avoid detection
-    await page.setUserAgent(
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
-    );
-
-    await page.goto(url, { waitUntil: "networkidle0", timeout: 30000 });
-
-    // Extract property data
-    const propertyData = await page.evaluate(() => {
-      // This is a placeholder - actual selectors need to be determined
-      // from real realestate.com.au structure
-      return {
-        address: "Sample Address",
-        suburb: "Sample Suburb", 
-        postcode: "5000",
-        price: "$850,000",
-        bedrooms: 3,
-        bathrooms: 2,
-        carSpaces: 2,
-        landSize: 450,
-        description: "Sample description",
-        features: ["Air Conditioning", "Solar Panels"],
-        images: [],
-        agentName: "Sample Agent",
-        agentPhone: "08 1234 5678",
-      };
-    });
-
+    // Convert new format to legacy format
     return {
-      ...propertyData,
+      address: extractedData.address,
+      suburb: extractedData.suburb,
+      postcode: extractedData.postcode,
+      price: extractedData.priceDisplay,
+      bedrooms: extractedData.bedrooms,
+      bathrooms: extractedData.bathrooms,
+      carSpaces: extractedData.parking,
+      landSize: extractedData.landSize,
+      description: extractedData.description,
+      features: extractedData.features,
+      images: extractedData.images.map(img => img.url),
+      agentName: extractedData.agentName,
+      agentPhone: extractedData.agentPhone,
       listingUrl: url,
     };
   } catch (error) {
-    console.error("Scraping failed:", error);
+    if (error instanceof PropertyExtractionError) {
+      throw new Error(`Failed to scrape property: ${error.message}`);
+    }
     throw new Error(`Failed to scrape property: ${error instanceof Error ? error.message : "Unknown error"}`);
-  } finally {
-    await browser.close();
   }
 }
 
@@ -77,14 +63,9 @@ export function extractPropertyId(url: string): string {
   return match?.[1] ?? url;
 }
 
+/**
+ * Legacy function - now uses the new comprehensive validator
+ */
 export function validateRealEstateUrl(url: string): boolean {
-  try {
-    const parsedUrl = new URL(url);
-    return (
-      parsedUrl.hostname.includes("realestate.com.au") &&
-      parsedUrl.pathname.includes("/property-")
-    );
-  } catch {
-    return false;
-  }
+  return isValidPropertyUrl(url);
 }

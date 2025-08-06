@@ -7,11 +7,25 @@ import {
   editorProcedure 
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { DealBreakerValidator } from "~/lib/validators/deal-breakers";
+import { 
+  extractPropertyData, 
+  extractPropertyId, 
+  isValidPropertyUrl, 
+  getWebsiteName, 
+  PropertyExtractionError 
+} from "~/lib/scrapers/property-extractor";
 
 // Validation schemas
 const createPropertySchema = z.object({
-  url: z.string().url("Must be a valid URL"),
+  url: z.string().url("Must be a valid URL").refine(
+    (url) => isValidPropertyUrl(url),
+    {
+      message: "URL must be from realestate.com.au or domain.com.au",
+    }
+  ),
   notes: z.string().optional(),
+  skipExisting: z.boolean().default(false),
 });
 
 const updatePropertySchema = z.object({
@@ -190,54 +204,121 @@ export const propertyRouter = createTRPCRouter({
       return property;
     }),
 
-  // Create new property from URL (requires web scraping)
+  // Create new property from URL with comprehensive web scraping
   create: editorProcedure
     .input(createPropertySchema)
     .mutation(async ({ ctx, input }) => {
-      const { url, notes } = input;
+      const { url, notes, skipExisting } = input;
       
       // Check if property already exists
       const existingProperty = await ctx.db.property.findUnique({
         where: { url },
+        include: {
+          suburbProfile: true,
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
       });
 
-      if (existingProperty) {
+      if (existingProperty && !skipExisting) {
         throw new TRPCError({
           code: 'CONFLICT',
           message: 'Property already exists in the system',
+          cause: { existingPropertyId: existingProperty.id },
         });
       }
 
+      if (existingProperty && skipExisting) {
+        return existingProperty;
+      }
+
       try {
-        // TODO: Implement web scraping agent here
-        // For now, create a placeholder property
+        // Extract property data using our comprehensive scraper
+        console.log(`Starting property extraction for: ${url}`);
+        const extractedData = await extractPropertyData(url);
+        console.log(`Successfully extracted data for: ${extractedData.address}`);
+
+        // Find or create suburb profile
+        let suburbProfile = await ctx.db.suburbProfile.findUnique({
+          where: {
+            name_state_postcode: {
+              name: extractedData.suburb,
+              state: extractedData.state,
+              postcode: extractedData.postcode,
+            },
+          },
+        });
+
+        if (!suburbProfile) {
+          console.log(`Creating new suburb profile for: ${extractedData.suburb}`);
+          suburbProfile = await ctx.db.suburbProfile.create({
+            data: {
+              name: extractedData.suburb,
+              state: extractedData.state,
+              postcode: extractedData.postcode,
+              lastUpdated: new Date(),
+              sources: {
+                propertyExtraction: {
+                  url,
+                  extractedAt: new Date().toISOString(),
+                  source: getWebsiteName(url),
+                },
+              },
+            },
+          });
+        }
+
+        // Create property with extracted data
         const property = await ctx.db.property.create({
           data: {
-            url,
-            address: 'Pending address extraction...',
-            suburb: 'Unknown',
-            state: 'SA',
-            postcode: '0000',
-            priceDisplay: 'Price TBA',
-            bedrooms: 0,
-            bathrooms: 0,
-            parking: 0,
-            propertyType: 'HOUSE',
-            description: 'Property details being extracted...',
-            features: [],
-            images: [],
-            scrapedData: {},
+            url: extractedData.url,
+            address: extractedData.address,
+            suburb: extractedData.suburb,
+            state: extractedData.state,
+            postcode: extractedData.postcode,
+            priceDisplay: extractedData.priceDisplay,
+            priceMin: extractedData.priceMin,
+            priceMax: extractedData.priceMax,
+            bedrooms: extractedData.bedrooms,
+            bathrooms: extractedData.bathrooms,
+            parking: extractedData.parking,
+            landSize: extractedData.landSize,
+            propertyType: extractedData.propertyType,
+            description: extractedData.description,
+            features: extractedData.features,
+            images: extractedData.images,
+            agentName: extractedData.agentName,
+            agentAgency: extractedData.agentAgency,
+            agentPhone: extractedData.agentPhone,
+            agentEmail: extractedData.agentEmail,
+            hasFloodRisk: extractedData.hasFloodRisk,
+            hasTwoStories: extractedData.hasTwoStories,
+            hasCarParking: extractedData.hasCarParking,
+            hasSolarPanels: extractedData.hasSolarPanels,
+            isDogFriendly: extractedData.isDogFriendly,
+            isMainRoad: extractedData.isMainRoad,
+            hasPowerLines: extractedData.hasPowerLines,
+            listingId: extractedData.listingId,
+            listedDate: extractedData.listedDate,
+            daysOnMarket: extractedData.daysOnMarket,
+            scrapedData: extractedData.scrapedData,
             status: 'RESEARCHING',
             statusHistory: [
               {
                 status: 'RESEARCHING',
-                timestamp: new Date(),
+                timestamp: new Date().toISOString(),
                 userId: ctx.session.user.id,
-                notes: 'Property added to research list',
+                notes: `Property added from ${getWebsiteName(url)}`,
               },
             ],
+            lastScraped: new Date(),
             createdById: ctx.session.user.id,
-            suburbId: 'temp-suburb-id', // TODO: Create or find suburb
+            suburbId: suburbProfile.id,
           },
           include: {
             suburbProfile: true,
@@ -251,6 +332,8 @@ export const propertyRouter = createTRPCRouter({
           },
         });
 
+        console.log(`Successfully created property: ${property.id}`);
+
         // Create activity log
         await ctx.db.activity.create({
           data: {
@@ -260,7 +343,14 @@ export const propertyRouter = createTRPCRouter({
             propertyId: property.id,
             metadata: {
               url,
-              source: 'manual',
+              source: getWebsiteName(url),
+              extractedData: {
+                bedrooms: extractedData.bedrooms,
+                bathrooms: extractedData.bathrooms,
+                parking: extractedData.parking,
+                priceDisplay: extractedData.priceDisplay,
+                landSize: extractedData.landSize,
+              },
             },
           },
         });
@@ -277,12 +367,49 @@ export const propertyRouter = createTRPCRouter({
           });
         }
 
+        // Auto-check for deal breakers
+        const dealBreakers = [];
+        if (extractedData.hasFloodRisk) dealBreakers.push('Flood risk detected');
+        if (extractedData.hasTwoStories) dealBreakers.push('Two-story property');
+        if (!extractedData.hasCarParking) dealBreakers.push('No car parking');
+        if (!extractedData.hasSolarPanels) dealBreakers.push('No solar panels');
+        if (!extractedData.isDogFriendly) dealBreakers.push('Not dog-friendly');
+        if (extractedData.isMainRoad) dealBreakers.push('Main road location');
+        if (extractedData.hasPowerLines) dealBreakers.push('Overhead power lines');
+
+        // If deal breakers found, add warning note
+        if (dealBreakers.length > 0) {
+          await ctx.db.note.create({
+            data: {
+              content: `⚠️ **Potential Deal Breakers Detected:**\n\n${dealBreakers.map(db => `• ${db}`).join('\n')}\n\n*Please review these issues before proceeding.*`,
+              type: 'IMPORTANT',
+              propertyId: property.id,
+              authorId: ctx.session.user.id,
+            },
+          });
+        }
+
         return property;
+
       } catch (error) {
         console.error('Error creating property:', error);
+        
+        if (error instanceof PropertyExtractionError) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `Property extraction failed: ${error.message}`,
+            cause: {
+              stage: error.stage,
+              url: error.url,
+              originalError: error.cause,
+            },
+          });
+        }
+
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to create property',
+          message: 'Failed to create property due to an unexpected error',
+          cause: error,
         });
       }
     }),
@@ -541,5 +668,214 @@ export const propertyRouter = createTRPCRouter({
         recentlyAdded,
         needingAttention,
       };
+    }),
+
+  // Enhanced deal-breaker validation with detailed analysis
+  validateDealBreakers: protectedProcedure
+    .input(z.object({ id: z.string().cuid() }))
+    .query(async ({ ctx, input }) => {
+      const property = await ctx.db.property.findUnique({
+        where: { id: input.id },
+        include: {
+          suburbProfile: true,
+        },
+      });
+
+      if (!property) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Property not found',
+        });
+      }
+
+      const validation = DealBreakerValidator.validate(property as any);
+      const recommendation = DealBreakerValidator.generateRecommendation(validation);
+
+      return {
+        ...validation,
+        recommendation,
+        propertyId: property.id,
+        address: property.address,
+      };
+    }),
+
+  // Rescrape property data to update with latest information
+  rescrape: editorProcedure
+    .input(z.object({ 
+      id: z.string().cuid(),
+      forceUpdate: z.boolean().default(false),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { id, forceUpdate } = input;
+
+      const property = await ctx.db.property.findUnique({
+        where: { id },
+        select: { 
+          id: true, 
+          url: true, 
+          address: true, 
+          lastScraped: true,
+        },
+      });
+
+      if (!property) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Property not found',
+        });
+      }
+
+      // Check if property was scraped recently (within last 24 hours)
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      if (!forceUpdate && property.lastScraped && property.lastScraped > oneDayAgo) {
+        throw new TRPCError({
+          code: 'TOO_MANY_REQUESTS',
+          message: 'Property was scraped recently. Use forceUpdate=true to override.',
+        });
+      }
+
+      try {
+        console.log(`Re-scraping property: ${property.id} - ${property.url}`);
+        const extractedData = await extractPropertyData(property.url);
+        console.log(`Successfully re-scraped: ${extractedData.address}`);
+
+        // Update property with new data
+        const updatedProperty = await ctx.db.property.update({
+          where: { id },
+          data: {
+            address: extractedData.address,
+            suburb: extractedData.suburb,
+            state: extractedData.state,
+            postcode: extractedData.postcode,
+            priceDisplay: extractedData.priceDisplay,
+            priceMin: extractedData.priceMin,
+            priceMax: extractedData.priceMax,
+            bedrooms: extractedData.bedrooms,
+            bathrooms: extractedData.bathrooms,
+            parking: extractedData.parking,
+            landSize: extractedData.landSize,
+            propertyType: extractedData.propertyType,
+            description: extractedData.description,
+            features: extractedData.features,
+            images: extractedData.images,
+            agentName: extractedData.agentName,
+            agentAgency: extractedData.agentAgency,
+            agentPhone: extractedData.agentPhone,
+            agentEmail: extractedData.agentEmail,
+            hasFloodRisk: extractedData.hasFloodRisk,
+            hasTwoStories: extractedData.hasTwoStories,
+            hasCarParking: extractedData.hasCarParking,
+            hasSolarPanels: extractedData.hasSolarPanels,
+            isDogFriendly: extractedData.isDogFriendly,
+            isMainRoad: extractedData.isMainRoad,
+            hasPowerLines: extractedData.hasPowerLines,
+            listingId: extractedData.listingId,
+            listedDate: extractedData.listedDate,
+            daysOnMarket: extractedData.daysOnMarket,
+            scrapedData: {
+              ...extractedData.scrapedData,
+              previousScrape: property.lastScraped,
+            },
+            lastScraped: new Date(),
+          },
+          include: {
+            suburbProfile: true,
+            analysis: true,
+            createdBy: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              },
+            },
+          },
+        });
+
+        // Create activity log
+        await ctx.db.activity.create({
+          data: {
+            type: 'PROPERTY_UPDATED',
+            action: `Property data refreshed from ${getWebsiteName(property.url)}`,
+            userId: ctx.session.user.id,
+            propertyId: id,
+            metadata: {
+              source: getWebsiteName(property.url),
+              previousScrape: property.lastScraped,
+              forceUpdate,
+            },
+          },
+        });
+
+        return {
+          property: updatedProperty,
+          message: 'Property data successfully refreshed',
+        };
+
+      } catch (error) {
+        console.error('Error re-scraping property:', error);
+        
+        if (error instanceof PropertyExtractionError) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `Property re-scraping failed: ${error.message}`,
+            cause: {
+              stage: error.stage,
+              url: error.url,
+              originalError: error.cause,
+            },
+          });
+        }
+
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to re-scrape property',
+          cause: error,
+        });
+      }
+    }),
+
+  // Preview property data without saving (for testing URLs)
+  preview: protectedProcedure
+    .input(z.object({ url: z.string().url() }))
+    .mutation(async ({ ctx, input }) => {
+      const { url } = input;
+      
+      if (!isValidPropertyUrl(url)) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'URL must be from realestate.com.au or domain.com.au',
+        });
+      }
+
+      try {
+        console.log(`Previewing property from: ${url}`);
+        const extractedData = await extractPropertyData(url);
+        
+        return {
+          success: true,
+          data: extractedData,
+          website: getWebsiteName(url),
+          message: `Successfully extracted data from ${getWebsiteName(url)}`,
+        };
+      } catch (error) {
+        console.error('Error previewing property:', error);
+        
+        if (error instanceof PropertyExtractionError) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `Property preview failed: ${error.message}`,
+            cause: {
+              stage: error.stage,
+              url: error.url,
+              originalError: error.cause,
+            },
+          });
+        }
+
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to preview property',
+        });
+      }
     }),
 });

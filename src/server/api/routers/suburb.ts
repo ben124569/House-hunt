@@ -6,6 +6,17 @@ import {
   editorProcedure 
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { 
+  getOrCreateSuburbProfile,
+  researchSuburb,
+  generateIntelligenceSummary,
+  getCouncilArea,
+  isHighFloodRiskSuburb,
+  batchResearchSuburbs,
+  NORTHERN_ADELAIDE_SUBURBS,
+  COUNCIL_AREAS,
+  type ComprehensiveSuburbData,
+} from "~/lib/research/suburb-intelligence";
 
 // Validation schemas
 const suburbSearchSchema = z.object({
@@ -16,6 +27,20 @@ const suburbSearchSchema = z.object({
 
 const updateSuburbSchema = z.object({
   id: z.string().cuid(),
+  forceRefresh: z.boolean().default(false),
+});
+
+const researchSuburbSchema = z.object({
+  name: z.string().min(1),
+  postcode: z.string().optional(),
+  forceRefresh: z.boolean().default(false),
+});
+
+const batchResearchSchema = z.object({
+  suburbs: z.array(z.object({
+    name: z.string().min(1),
+    postcode: z.string().optional(),
+  })).min(1).max(10),
   forceRefresh: z.boolean().default(false),
 });
 
@@ -63,57 +88,47 @@ export const suburbRouter = createTRPCRouter({
         });
       }
 
-      return suburb;
+      // Enrich with intelligence summary if we have comprehensive data
+      const intelligence = suburb.dataConfidence && suburb.dataConfidence > 50 
+        ? generateIntelligenceSummary({
+            name: suburb.name,
+            state: suburb.state,
+            postcode: suburb.postcode,
+            demographics: suburb.demographics as any,
+            schools: suburb.schools as any,
+            crimeStats: suburb.crimeStats as any,
+            transport: suburb.transport as any,
+            amenities: suburb.amenities as any,
+            marketData: suburb.marketData as any,
+            developments: suburb.developments as any,
+            riskAssessment: {
+              floodRisk: suburb.floodRisk ? { level: suburb.floodRisk } : undefined,
+              bushfireRisk: suburb.bushfireRisk ? { level: suburb.bushfireRisk } : undefined,
+            },
+            sources: suburb.sources as any,
+            dataConfidence: suburb.dataConfidence,
+            lastUpdated: suburb.lastUpdated,
+          } as ComprehensiveSuburbData)
+        : null;
+
+      return {
+        ...suburb,
+        intelligence,
+        councilArea: getCouncilArea(suburb.name),
+        isHighFloodRisk: isHighFloodRiskSuburb(suburb.name),
+      };
     }),
 
-  // Get suburb by ID
-  getById: protectedProcedure
-    .input(z.object({ id: z.string().cuid() }))
-    .query(async ({ ctx, input }) => {
-      const suburb = await ctx.db.suburbProfile.findUnique({
-        where: { id: input.id },
-        include: {
-          properties: {
-            select: {
-              id: true,
-              address: true,
-              status: true,
-              priceDisplay: true,
-              bedrooms: true,
-              bathrooms: true,
-              createdAt: true,
-            },
-            where: {
-              status: { not: 'ARCHIVED' },
-            },
-            orderBy: { createdAt: 'desc' },
-          },
-          history: {
-            orderBy: { recordedAt: 'desc' },
-            take: 5,
-          },
-        },
-      });
-
-      if (!suburb) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Suburb profile not found',
-        });
-      }
-
-      return suburb;
-    }),
-
-  // List all suburbs (for dropdown/search)
+  // List all suburbs (for dropdown/search) - simplified to avoid COUNCIL_AREAS issue
   list: protectedProcedure
     .input(z.object({
       search: z.string().optional(),
       state: z.string().optional(),
+      northernAdelaideOnly: z.boolean().default(false),
       limit: z.number().min(1).max(100).default(20),
     }))
     .query(async ({ ctx, input }) => {
-      const { search, state, limit } = input;
+      const { search, state, northernAdelaideOnly, limit } = input;
 
       const where: any = {};
       
@@ -123,6 +138,14 @@ export const suburbRouter = createTRPCRouter({
       
       if (state) {
         where.state = state;
+      }
+
+      // Filter to Northern Adelaide suburbs only if requested
+      if (northernAdelaideOnly) {
+        where.name = {
+          ...where.name,
+          in: Array.from(NORTHERN_ADELAIDE_SUBURBS),
+        };
       }
 
       const suburbs = await ctx.db.suburbProfile.findMany({
@@ -135,6 +158,7 @@ export const suburbRouter = createTRPCRouter({
           medianHousePrice: true,
           medianUnitPrice: true,
           floodRisk: true,
+          dataConfidence: true,
           lastUpdated: true,
           _count: {
             select: {
@@ -151,282 +175,152 @@ export const suburbRouter = createTRPCRouter({
         take: limit,
       });
 
-      return suburbs;
+      return suburbs.map(suburb => ({
+        ...suburb,
+        councilArea: getCouncilArea(suburb.name),
+        isHighFloodRisk: isHighFloodRiskSuburb(suburb.name),
+        needsResearch: !suburb.dataConfidence || suburb.dataConfidence < 70,
+      }));
     }),
 
-  // Get or create suburb profile (used when adding properties)
+  // Get or create suburb profile (used when adding properties) - now uses intelligence system
   getOrCreate: editorProcedure
     .input(suburbSearchSchema)
     .mutation(async ({ ctx, input }) => {
       const { name, state, postcode } = input;
       
-      // First, try to find existing suburb
-      const existingSuburb = await ctx.db.suburbProfile.findFirst({
-        where: {
-          name: { equals: name, mode: 'insensitive' },
-          state,
-          ...(postcode && { postcode }),
-        },
-      });
-
-      if (existingSuburb) {
-        // Check if data is stale (older than 30 days)
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        const needsRefresh = existingSuburb.lastUpdated < thirtyDaysAgo;
-
-        if (needsRefresh) {
-          // TODO: Trigger suburb intelligence agent to refresh data
-          console.log(`Suburb ${name} needs data refresh (last updated: ${existingSuburb.lastUpdated})`);
-        }
-
-        return existingSuburb;
-      }
-
       try {
-        // Create new suburb profile with basic data
-        // TODO: Trigger suburb intelligence agent to populate full data
-        const newSuburb = await ctx.db.suburbProfile.create({
-          data: {
-            name,
-            state,
-            postcode: postcode || '0000',
-            latitude: 0, // TODO: Get from geocoding
-            longitude: 0, // TODO: Get from geocoding
-            demographics: {},
-            schools: [],
-            catchments: [],
-            crimeStats: {},
-            transport: {},
-            commuteTime: {},
-            amenities: {},
-            marketData: {},
-            developments: {},
-            sources: [],
-            lastUpdated: new Date(),
-          },
-        });
-
+        // Use the intelligence system to get or create the profile
+        const suburbProfile = await getOrCreateSuburbProfile(name, postcode, false);
+        
         // Create activity log
         await ctx.db.activity.create({
           data: {
             type: 'SUBURB_ADDED',
-            action: `Added new suburb profile: ${name}, ${state}`,
+            action: `Retrieved/created suburb profile: ${name}, ${state}`,
             userId: ctx.session.user.id,
             metadata: {
-              suburbId: newSuburb.id,
+              suburbId: suburbProfile.id,
               source: 'property_addition',
+              dataConfidence: suburbProfile.dataConfidence,
             },
           },
         });
 
-        return newSuburb;
+        return {
+          ...suburbProfile,
+          councilArea: getCouncilArea(suburbProfile.name),
+          isHighFloodRisk: isHighFloodRiskSuburb(suburbProfile.name),
+        };
       } catch (error) {
-        console.error('Error creating suburb:', error);
+        console.error('Error in getOrCreate suburb:', error);
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to create suburb profile',
+          message: `Failed to get or create suburb profile: ${error instanceof Error ? error.message : 'Unknown error'}`,
         });
       }
     }),
 
-  // Update suburb data (force refresh)
-  update: editorProcedure
-    .input(updateSuburbSchema)
+  // Research a suburb comprehensively (new endpoint)
+  research: editorProcedure
+    .input(researchSuburbSchema)
     .mutation(async ({ ctx, input }) => {
-      const { id, forceRefresh } = input;
-
-      const suburb = await ctx.db.suburbProfile.findUnique({
-        where: { id },
-        select: { id: true, name: true, state: true, lastUpdated: true },
-      });
-
-      if (!suburb) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Suburb profile not found',
-        });
-      }
+      const { name, postcode, forceRefresh } = input;
 
       try {
-        // Save current data to history before updating
-        await ctx.db.suburbHistory.create({
-          data: {
-            suburbId: id,
-            data: suburb as any, // Store current state
-            changes: forceRefresh ? { reason: 'manual_refresh' } : {},
-            recordedAt: new Date(),
-          },
-        });
-
-        // TODO: Trigger suburb intelligence agent to refresh all data
-        const updatedSuburb = await ctx.db.suburbProfile.update({
-          where: { id },
-          data: {
-            lastUpdated: new Date(),
-            // TODO: Update with fresh data from agents
-          },
-        });
-
+        // Perform comprehensive research
+        const researchData = await researchSuburb(name, postcode, forceRefresh);
+        
+        // Generate intelligence summary
+        const intelligence = generateIntelligenceSummary(researchData);
+        
         // Create activity log
         await ctx.db.activity.create({
           data: {
-            type: 'SUBURB_UPDATED',
-            action: `Updated suburb data: ${suburb.name}, ${suburb.state}`,
+            type: 'SUBURB_RESEARCHED',
+            action: `Comprehensive research completed for ${name}${postcode ? ` ${postcode}` : ''}`,
             userId: ctx.session.user.id,
             metadata: {
-              suburbId: id,
+              dataConfidence: researchData.dataConfidence,
+              sourcesCount: researchData.sources?.length || 0,
+              recommendation: intelligence.recommendation,
               forceRefresh,
-              previousUpdate: suburb.lastUpdated,
             },
           },
         });
 
-        return updatedSuburb;
+        return {
+          suburb: researchData,
+          intelligence,
+          councilArea: getCouncilArea(name),
+          isHighFloodRisk: isHighFloodRiskSuburb(name),
+        };
       } catch (error) {
-        console.error('Error updating suburb:', error);
+        console.error('Error researching suburb:', error);
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to update suburb data',
+          message: `Failed to research suburb: ${error instanceof Error ? error.message : 'Unknown error'}`,
         });
       }
     }),
 
-  // Get suburbs needing data refresh
-  getStaleSuburbs: editorProcedure
+  // Get Northern Adelaide suburbs overview - simplified
+  getNorthernAdelaideOverview: protectedProcedure
     .query(async ({ ctx }) => {
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const northernSuburbs = await ctx.db.suburbProfile.findMany({
+        where: {
+          name: { in: Array.from(NORTHERN_ADELAIDE_SUBURBS) },
+          state: 'SA',
+        },
+        select: {
+          id: true,
+          name: true,
+          postcode: true,
+          medianHousePrice: true,
+          floodRisk: true,
+          dataConfidence: true,
+          lastUpdated: true,
+          _count: {
+            select: {
+              properties: { where: { status: { not: 'ARCHIVED' } } },
+            },
+          },
+        },
+        orderBy: { name: 'asc' },
+      });
+
+      // Group by council area - simplified approach
+      const byCouncil: Record<string, any[]> = {};
       
-      const staleSuburbs = await ctx.db.suburbProfile.findMany({
-        where: {
-          lastUpdated: { lt: thirtyDaysAgo },
-          properties: {
-            some: {
-              status: { not: 'ARCHIVED' },
-            },
-          },
-        },
-        select: {
-          id: true,
-          name: true,
-          state: true,
-          postcode: true,
-          lastUpdated: true,
-          _count: {
-            select: {
-              properties: {
-                where: { status: { not: 'ARCHIVED' } },
-              },
-            },
-          },
-        },
-        orderBy: { lastUpdated: 'asc' },
+      // Initialize council groups
+      Object.keys(COUNCIL_AREAS).forEach(council => {
+        byCouncil[council] = [];
+      });
+      
+      // Group suburbs by council
+      northernSuburbs.forEach(suburb => {
+        const council = getCouncilArea(suburb.name);
+        if (council && byCouncil[council]) {
+          byCouncil[council].push({
+            ...suburb,
+            isHighFloodRisk: isHighFloodRiskSuburb(suburb.name),
+            needsResearch: !suburb.dataConfidence || suburb.dataConfidence < 70,
+          });
+        }
       });
 
-      return staleSuburbs;
-    }),
-
-  // Get suburb comparison data
-  compare: protectedProcedure
-    .input(z.object({
-      suburbIds: z.array(z.string().cuid()).min(2).max(5),
-    }))
-    .query(async ({ ctx, input }) => {
-      const { suburbIds } = input;
-
-      const suburbs = await ctx.db.suburbProfile.findMany({
-        where: { id: { in: suburbIds } },
-        select: {
-          id: true,
-          name: true,
-          state: true,
-          postcode: true,
-          medianHousePrice: true,
-          medianUnitPrice: true,
-          rentalYield: true,
-          growthRate: true,
-          daysOnMarket: true,
-          floodRisk: true,
-          bushfireRisk: true,
-          crimeStats: true,
-          demographics: true,
-          lastUpdated: true,
-        },
-      });
-
-      if (suburbs.length !== suburbIds.length) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'One or more suburbs not found',
-        });
-      }
-
-      return {
-        suburbs,
-        comparison: {
-          // Add comparison logic here
-          medianPriceRange: {
-            min: Math.min(...suburbs.map(s => s.medianHousePrice || 0)),
-            max: Math.max(...suburbs.map(s => s.medianHousePrice || 0)),
-          },
-          riskLevels: suburbs.map(s => ({
-            id: s.id,
-            name: s.name,
-            flood: s.floodRisk,
-            bushfire: s.bushfireRisk,
-          })),
-        },
+      const stats = {
+        totalSuburbs: Array.from(NORTHERN_ADELAIDE_SUBURBS).length,
+        researched: northernSuburbs.length,
+        needingResearch: northernSuburbs.filter(s => !s.dataConfidence || s.dataConfidence < 70).length,
+        highFloodRisk: northernSuburbs.filter(s => isHighFloodRiskSuburb(s.name)).length,
+        withProperties: northernSuburbs.filter(s => s._count.properties > 0).length,
       };
-    }),
-
-  // Get nearby suburbs
-  getNearby: protectedProcedure
-    .input(z.object({
-      suburbId: z.string().cuid(),
-      radius: z.number().min(1).max(50).default(10), // km
-    }))
-    .query(async ({ ctx, input }) => {
-      const { suburbId, radius } = input;
-
-      const targetSuburb = await ctx.db.suburbProfile.findUnique({
-        where: { id: suburbId },
-        select: { latitude: true, longitude: true, name: true },
-      });
-
-      if (!targetSuburb) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Target suburb not found',
-        });
-      }
-
-      // TODO: Implement proper geographic distance calculation
-      // For now, return suburbs in the same state
-      const nearbySuburbs = await ctx.db.suburbProfile.findMany({
-        where: {
-          id: { not: suburbId },
-          // TODO: Add geographic distance calculation
-        },
-        select: {
-          id: true,
-          name: true,
-          state: true,
-          postcode: true,
-          medianHousePrice: true,
-          floodRisk: true,
-          _count: {
-            select: {
-              properties: {
-                where: { status: { not: 'ARCHIVED' } },
-              },
-            },
-          },
-        },
-        take: 10,
-      });
 
       return {
-        target: targetSuburb,
-        nearby: nearbySuburbs,
+        byCouncil,
+        stats,
+        allSuburbs: Array.from(NORTHERN_ADELAIDE_SUBURBS),
       };
     }),
 });

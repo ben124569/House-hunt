@@ -4,40 +4,50 @@ import Image from "next/image";
 import Link from "next/link";
 
 interface PropertyCardProps {
-  id: string;
-  address: string;
-  listingPrice: number;
-  estimatedPrice?: number;
-  bedrooms: number;
-  bathrooms: number;
-  carSpaces: number;
-  landSize?: number;
-  status: "researching" | "interested" | "viewing" | "rejected" | "purchased";
-  risks?: string[];
-  images?: string[];
-  suburb: string;
+  property: {
+    id: string;
+    address: string;
+    listingPrice: number;
+    estimatedPrice?: number;
+    bedrooms: number;
+    bathrooms: number;
+    carSpaces: number;
+    landSize?: number;
+    status: string;
+    risks?: string[];
+    images?: string[];
+    suburb?: { name: string };
+  };
 }
 
 export function PropertyCard({
-  id,
-  address,
-  listingPrice,
-  estimatedPrice,
-  bedrooms,
-  bathrooms,
-  carSpaces,
-  landSize,
-  status,
-  risks = [],
-  images = [],
-  suburb,
+  property,
 }: PropertyCardProps) {
-  const statusClasses = {
-    researching: "status-researching",
-    interested: "status-interested", 
-    viewing: "status-viewing",
-    rejected: "status-rejected",
-    purchased: "status-purchased"
+  const {
+    id,
+    address,
+    listingPrice,
+    estimatedPrice,
+    bedrooms,
+    bathrooms,
+    carSpaces,
+    landSize,
+    status,
+    images = [],
+    suburb,
+  } = property;
+  
+  const risks = property.risks || [];
+  const suburbName = suburb?.name || 'Unknown Suburb';
+  const statusClasses: Record<string, string> = {
+    RESEARCHING: "bg-blue-100 text-blue-800",
+    INTERESTED: "bg-green-100 text-green-800",
+    VIEWING_SCHEDULED: "bg-yellow-100 text-yellow-800",
+    VIEWED: "bg-purple-100 text-purple-800",
+    OFFER_PENDING: "bg-orange-100 text-orange-800",
+    REJECTED: "bg-red-100 text-red-800",
+    PURCHASED: "bg-gray-100 text-gray-800",
+    ARCHIVED: "bg-gray-100 text-gray-800"
   };
 
   const priceDifference = estimatedPrice ? listingPrice - estimatedPrice : null;
@@ -46,7 +56,7 @@ export function PropertyCard({
 
   return (
     <Link href={`/properties/${id}`}>
-      <div className="card hover:shadow-md transition-shadow cursor-pointer">
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-6 hover:shadow-xl transition-shadow cursor-pointer">
         <div className="flex flex-col sm:flex-row gap-4">
           {/* Property Image */}
           <div className="w-full sm:w-48 h-32 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
@@ -73,10 +83,10 @@ export function PropertyCard({
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">{address}</h3>
-                <p className="text-sm text-gray-600">{suburb}</p>
+                <p className="text-sm text-gray-600">{suburbName}</p>
               </div>
-              <span className={statusClasses[status]}>
-                {status.charAt(0).toUpperCase() + status.slice(1)}
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusClasses[status] || 'bg-gray-100 text-gray-800'}`}>
+                {status.replace('_', ' ').charAt(0).toUpperCase() + status.replace('_', ' ').slice(1).toLowerCase()}
               </span>
             </div>
 
@@ -98,8 +108,8 @@ export function PropertyCard({
                     {priceDifference && (
                       <span 
                         className={`ml-2 ${
-                          isOverpriced ? 'text-danger-600' : 
-                          isGoodValue ? 'text-success-600' : 
+                          isOverpriced ? 'text-red-600' : 
+                          isGoodValue ? 'text-green-600' : 
                           'text-gray-600'
                         }`}
                       >
@@ -116,7 +126,7 @@ export function PropertyCard({
                   {risks.slice(0, 2).map((risk) => (
                     <span 
                       key={risk}
-                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-danger-100 text-danger-800"
+                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"
                     >
                       {risk}
                     </span>
