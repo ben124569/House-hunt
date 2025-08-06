@@ -1,0 +1,498 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// NextAuth.js Models
+model Account {
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String? @db.Text
+  access_token             String? @db.Text
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String? @db.Text
+  session_state            String?
+  user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refresh_token_expires_in Int?
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  
+  // House Hunt specific fields
+  role          UserRole  @default(VIEWER)
+  
+  // User Preferences
+  preferences   Json      @default("{}") // Search preferences, notification settings
+  timezone      String?   @default("Australia/Adelaide")
+  
+  // Relations - Properties and collaboration
+  properties    Property[] @relation("UserCreatedProperties")
+  notes         Note[]     @relation("UserNotes")
+  activities    Activity[] @relation("UserActivities")
+  documents     Document[] @relation("UserDocuments")
+  comparisons   PropertyComparison[] @relation("UserComparisons")
+  savedSearches SavedSearch[] @relation("UserSavedSearches")
+  
+  // Note mentions (many-to-many)
+  mentions      Note[]     @relation("UserMentions")
+  
+  // Timestamps and activity tracking
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastActive    DateTime?
+  
+  @@index([email])
+  @@index([role])
+  @@index([lastActive])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// House Hunt Platform Models
+enum UserRole {
+  ADMIN     // Full access, can manage users
+  EDITOR    // Can add/edit properties and notes
+  VIEWER    // Read-only access
+}
+
+enum PropertyType {
+  HOUSE
+  APARTMENT
+  TOWNHOUSE
+  VILLA
+  LAND
+  ACREAGE
+  OTHER
+}
+
+enum PropertyStatus {
+  RESEARCHING       // Initial investigation
+  INTERESTED        // Marked for consideration
+  VIEWING_SCHEDULED // Inspection booked
+  VIEWED           // Property inspected
+  OFFER_PENDING    // Offer submitted
+  REJECTED         // Not proceeding
+  PURCHASED        // Successfully purchased
+  ARCHIVED         // No longer active
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum NoteType {
+  GENERAL
+  PRO
+  CON
+  QUESTION
+  INSPECTION
+  IMPORTANT
+}
+
+enum DocumentType {
+  CONTRACT
+  INSPECTION_REPORT
+  STRATA_REPORT
+  PEST_REPORT
+  BUILDING_REPORT
+  FLOORPLAN
+  OTHER
+}
+
+enum ActivityType {
+  PROPERTY_ADDED
+  PROPERTY_UPDATED
+  PROPERTY_ARCHIVED
+  STATUS_CHANGED
+  NOTE_ADDED
+  NOTE_EDITED
+  NOTE_DELETED
+  DOCUMENT_UPLOADED
+  VIEWING_SCHEDULED
+  ANALYSIS_GENERATED
+  ANALYSIS_UPDATED
+  REPORT_EXPORTED
+  USER_MENTIONED
+  USER_SIGNIN
+  SUBURB_ADDED
+  SUBURB_UPDATED
+}
+
+// Property Model - Core entity representing a real estate listing
+model Property {
+  id             String    @id @default(cuid())
+  
+  // Basic Info
+  url            String    @unique
+  address        String
+  suburb         String
+  state          String    @default("SA")
+  postcode       String
+  
+  // Price
+  priceDisplay   String    // "$750,000" or "$700k-$800k"
+  priceMin       Int?      // 700000
+  priceMax       Int?      // 800000
+  
+  // Details
+  bedrooms       Int
+  bathrooms      Int
+  parking        Int
+  landSize       Int?      // in sqm
+  propertyType   PropertyType @default(HOUSE)
+  
+  // Status
+  status         PropertyStatus @default(RESEARCHING)
+  statusHistory  Json      @default("[]") // Array of status changes
+  
+  // Content
+  description    String    @db.Text
+  features       String[]
+  images         Json      @default("[]") // Array of image objects
+  scrapedData    Json      @default("{}") // Raw data from scraping
+  
+  // Agent
+  agentName      String?
+  agentAgency    String?
+  agentPhone     String?
+  agentEmail     String?
+  
+  // Deal Breakers - Auto validation flags
+  hasFloodRisk   Boolean?
+  hasTwoStories  Boolean?
+  hasCarParking  Boolean?
+  hasSolarPanels Boolean?
+  isDogFriendly  Boolean?
+  isMainRoad     Boolean?
+  hasPowerLines  Boolean?
+  
+  // Metadata
+  listingId      String?
+  listedDate     DateTime?
+  daysOnMarket   Int?
+  
+  // Relations
+  createdBy      User      @relation("UserCreatedProperties", fields: [createdById], references: [id])
+  createdById    String
+  
+  suburbProfile  SuburbProfile @relation(fields: [suburbId], references: [id])
+  suburbId       String
+  
+  notes          Note[]
+  activities     Activity[]
+  documents      Document[]
+  analysis       Analysis?
+  
+  // Property Comparison Relations
+  comparisons    PropertyComparison[] @relation("PropertyToComparison")
+  
+  // Timestamps
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  lastScraped    DateTime?
+  
+  @@index([suburb])
+  @@index([status])
+  @@index([createdAt])
+  @@index([priceMin, priceMax])
+  @@index([suburb, status])
+  @@index([suburbId])
+  @@index([createdById])
+}
+
+// SuburbProfile - Reusable suburb intelligence data
+model SuburbProfile {
+  id            String    @id @default(cuid())
+  
+  // Location
+  name          String
+  state         String    @default("SA")
+  postcode      String
+  latitude      Float?
+  longitude     Float?
+  
+  // Demographics
+  population    Int?
+  medianAge     Float?
+  medianIncome  Int?
+  demographics  Json      @default("{}") // Detailed breakdown
+  
+  // Education
+  schools       Json      @default("[]") // Array of schools
+  catchments    Json      @default("{}") // School zones
+  
+  // Safety
+  crimeStats    Json      @default("{}") // Crime categories and rates
+  crimeTrend    String?   // improving/stable/declining
+  
+  // Transport
+  transport     Json      @default("{}") // Public transport options
+  commuteTime   Json      @default("{}") // Times to key locations
+  
+  // Amenities
+  amenities     Json      @default("{}") // Shopping, healthcare, etc.
+  
+  // Market Data
+  medianHousePrice  Int?
+  medianUnitPrice   Int?
+  rentalYield       Float?
+  growthRate        Float?
+  daysOnMarket      Int?
+  marketData        Json    @default("{}") // Detailed market stats
+  
+  // Risk Assessment
+  floodRisk     RiskLevel?
+  bushfireRisk  RiskLevel?
+  developments  Json?     // Planned developments
+  
+  // Relations
+  properties    Property[]
+  history       SuburbHistory[]
+  
+  // Metadata - Citation System
+  sources       Json      @default("{}") // Data sources and citations
+  dataConfidence Float?   // 0-100 confidence score
+  lastUpdated   DateTime
+  createdAt     DateTime  @default(now())
+  
+  @@unique([name, state, postcode])
+  @@index([name])
+  @@index([name, state])
+  @@index([lastUpdated])
+}
+
+// Note - Collaborative notes and comments on properties
+model Note {
+  id          String    @id @default(cuid())
+  
+  content     String    @db.Text
+  type        NoteType  @default(GENERAL)
+  
+  // Relations
+  property    Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId  String
+  
+  author      User      @relation("UserNotes", fields: [authorId], references: [id])
+  authorId    String
+  
+  mentions    User[]    @relation("UserMentions")
+  
+  // Threading Support
+  parentId    String?
+  parent      Note?     @relation("NoteReplies", fields: [parentId], references: [id])
+  replies     Note[]    @relation("NoteReplies")
+  
+  // Metadata
+  edited      Boolean   @default(false)
+  editedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([propertyId])
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([propertyId, createdAt])
+}
+
+// Analysis - AI-generated analysis and reports for properties
+model Analysis {
+  id            String    @id @default(cuid())
+  
+  // Relations
+  property      Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId    String    @unique
+  
+  // Pricing Analysis
+  estimatedValue    Int?
+  overpricing       Float?   // Percentage over/under market
+  priceAssessment   String?  // "under", "fair", "over"
+  confidence        Float?   // 0-100
+  
+  // Comparable Sales Data
+  comparables       Json     @default("[]") // Array of comparable sales
+  comparableCount   Int?     // Number of comparables used
+  
+  // Investment Metrics
+  rentalYield       Float?
+  capitalGrowth     Float?
+  cashFlow          Json?
+  
+  // AI Scores (0-100)
+  valueScore        Float?   // Value for money score
+  investmentScore   Float?   // Investment potential score
+  locationScore     Float?   // Location desirability score
+  
+  // Risk Assessment
+  risks             Json     @default("[]") // Array of identified risks
+  riskScore         Float?   // Overall risk score 0-100
+  
+  // Generated Reports
+  summary           String?  @db.Text
+  detailedReport    Json?
+  keyInsights       Json     @default("[]") // Key bullet points
+  
+  // Metadata
+  generatedAt       DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([propertyId])
+}
+
+// Document - Files and attachments related to properties
+model Document {
+  id          String    @id @default(cuid())
+  
+  name        String
+  type        DocumentType
+  url         String
+  size        Int       // in bytes
+  mimeType    String
+  
+  // Relations
+  property    Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId  String
+  
+  uploadedBy  User      @relation("UserDocuments", fields: [uploadedById], references: [id])
+  uploadedById String
+  
+  // Metadata
+  metadata    Json?     // OCR text, extracted data
+  createdAt   DateTime  @default(now())
+  
+  @@index([propertyId])
+  @@index([uploadedById])
+}
+
+// Activity - Audit trail of all user actions
+model Activity {
+  id          String    @id @default(cuid())
+  
+  type        ActivityType
+  action      String    // Description of action
+  metadata    Json      @default("{}") // Additional context
+  
+  // Relations
+  user        User      @relation("UserActivities", fields: [userId], references: [id])
+  userId      String
+  
+  property    Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId  String?
+  
+  // Timestamp
+  createdAt   DateTime  @default(now())
+  
+  @@index([userId])
+  @@index([propertyId])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([propertyId, createdAt])
+}
+
+// PropertyComparison - Saved property comparisons
+model PropertyComparison {
+  id          String    @id @default(cuid())
+  
+  name        String
+  notes       String?   @db.Text
+  
+  // Relations
+  properties  Property[] @relation("PropertyToComparison")
+  
+  createdBy   User      @relation("UserComparisons", fields: [createdById], references: [id])
+  createdById String
+  
+  // Analysis Configuration
+  weights     Json?     // Feature importance weights
+  rankings    Json?     // Computed rankings
+  criteria    Json      @default("{}") // Comparison criteria
+  
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([createdById])
+  @@index([createdAt])
+}
+
+// SavedSearch - User's saved search criteria
+model SavedSearch {
+  id          String    @id @default(cuid())
+  
+  name        String
+  criteria    Json      @default("{}") // Search parameters
+  
+  // Notifications
+  emailAlert  Boolean   @default(false)
+  pushAlert   Boolean   @default(false)
+  
+  // Relations
+  user        User      @relation("UserSavedSearches", fields: [userId], references: [id])
+  userId      String
+  
+  // Metadata
+  lastRun     DateTime?
+  resultCount Int?
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([userId])
+}
+
+// SuburbHistory - Historical tracking of suburb data changes
+model SuburbHistory {
+  id            String    @id @default(cuid())
+  
+  // Relations
+  suburb        SuburbProfile @relation(fields: [suburbId], references: [id])
+  suburbId      String
+  
+  // Snapshot Data
+  data          Json      @default("{}") // Complete suburb data at this point
+  changes       Json?     // What changed from previous
+  source        String?   // Data source that triggered update
+  
+  // Timestamp
+  recordedAt    DateTime  @default(now())
+  
+  @@index([suburbId])
+  @@index([recordedAt])
+  @@index([suburbId, recordedAt])
+}
