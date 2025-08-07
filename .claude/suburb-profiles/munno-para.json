@@ -1,0 +1,210 @@
+{
+  "suburb": "Munno Para",
+  "state": "SA",
+  "postcode": "5115",
+  "last_updated": "2025-08-07T14:30:00Z",
+  "data_freshness": {
+    "crime": "2024-01-01",
+    "census": "2021-08-10",
+    "schools": "2024-07-01",
+    "transport": "2024-08-01",
+    "development": "2024-07-01",
+    "property_market": "2024-08-01"
+  },
+  "scores": {
+    "overall_livability": 68,
+    "investment_potential": "B+",
+    "family_friendliness": 72,
+    "retiree_suitability": 45,
+    "safety": 42,
+    "transport_access": 75
+  },
+  "key_insights": [
+    "Strong property growth with 20.47% house price increases in 2024",
+    "Direct train connection to Adelaide CBD in 46 minutes (every 30 minutes)",
+    "Significant infrastructure investment including $33M+ for sports facilities and drainage",
+    "Population growing rapidly at 26.4% (2016-2021) with young demographic profile",
+    "Lower flood risk compared to nearby Angle Vale due to higher elevation"
+  ],
+  "warnings": [
+    "Crime rates above Greater Adelaide average, particularly assault and theft",
+    "Limited shopping and dining options compared to established suburbs",
+    "Rapid development may strain existing infrastructure",
+    "Lower socioeconomic profile may affect long-term capital growth potential"
+  ],
+  "opportunities": [
+    "Major Playford Alive development bringing 1,480+ new homes over 8 years",
+    "New Munno Para train station improving connectivity",
+    "Munno Para Sportsground Stage 1 construction enhancing amenities",
+    "Affordable entry point under $600k median for strong growth corridor"
+  ],
+  "detailed_data": {
+    "demographics": {
+      "population_2021": 4719,
+      "population_2016": 3735,
+      "growth_rate": "26.4%",
+      "median_age": "lower than Australian average",
+      "under_25_years": "38.5%",
+      "australian_born": "76.6%",
+      "owner_occupied_2021": "51.5%",
+      "owner_occupied_2016": "43.4%",
+      "religious_affiliation_secular": "60.6%"
+    },
+    "crime": {
+      "overall_safety": "Below Adelaide average",
+      "most_common_violent": "Assault",
+      "most_common_property": "Theft",
+      "trend_2022_2023": "No change (0%)",
+      "homicides_2023": 0,
+      "data_source": "SAPOL Crime Statistics",
+      "note": "Sexual offences data not available at suburb level for privacy"
+    },
+    "education": {
+      "primary_schools": [
+        {
+          "name": "Munno Para Primary School",
+          "enrollment": 347,
+          "type": "Government",
+          "catchment_zone": "Yes",
+          "website": "https://munnoparaps.sa.edu.au/"
+        }
+      ],
+      "preschools": [
+        {
+          "name": "Munno Para Kindergarten",
+          "enrollment": 80,
+          "catchment_area": "Yes"
+        }
+      ],
+      "secondary_schools_nearby": [
+        "Mark Oliphant College (via bus route 461)",
+        "Trinity College Gawler (within catchment)"
+      ],
+      "naplan_data": "Available via MySchool website for specific performance metrics"
+    },
+    "transport": {
+      "train_lines": ["GAW", "GAWC"],
+      "train_frequency": "Every 30 minutes",
+      "cbd_commute_time": "46 minutes direct",
+      "bus_routes": ["228", "440", "452", "461"],
+      "nearest_interchange": "Munno Para Centre Interchange",
+      "walkability": "Limited - car dependent suburb",
+      "cycling_infrastructure": "Basic"
+    },
+    "amenities": {
+      "shopping": {
+        "major_centers": [
+          {
+            "name": "Munno Para Shopping City",
+            "type": "Regional shopping center",
+            "features": ["Gift cards", "Bus interchange", "Taxi rank", "Wheelchair hire"]
+          }
+        ],
+        "business_centers": [
+          {
+            "name": "Stretton Centre",
+            "address": "307 Peachey Road",
+            "services": ["Meeting rooms", "Virtual offices", "Business support", "Events"],
+            "hours": "Mon-Wed,Fri 9am-5pm, Thu 10am-5pm"
+          }
+        ]
+      },
+      "healthcare": "Limited local options - mostly in nearby suburbs",
+      "recreation": [
+        "Munno Para Sportsground (Stage 1 under construction)",
+        "Fremont Park",
+        "Various reserves and parks"
+      ],
+      "distance_to_adelaide": "26 miles (42km) by road, 31 minutes driving"
+    },
+    "development": {
+      "major_projects_2024": [
+        {
+          "name": "Munno Para Sportsground Stage 1",
+          "investment": "Part of $33M+ infrastructure spend",
+          "status": "Under construction",
+          "completion": "2024-2025"
+        },
+        {
+          "name": "Broadacres Drive Outfall Drain Stage 2B",
+          "purpose": "Stormwater management",
+          "status": "Construction phase"
+        },
+        {
+          "name": "Playford Alive Eastern Parcel",
+          "scale": "1,480+ new homes over 8 years",
+          "details": "1,300 individual allotments, 5 medium-density sites"
+        }
+      ],
+      "planning_context": "Part of Playford North Extension covering 729 hectares",
+      "population_projection": "Playford expecting 10 new residents daily until 2046"
+    },
+    "market": {
+      "median_house_price": 590282,
+      "median_unit_price": 525000,
+      "annual_growth_houses": "20.47%",
+      "annual_growth_units": "28.83%",
+      "quarterly_growth_houses": "1.77%",
+      "days_on_market_houses": 22,
+      "days_on_market_units": 20,
+      "rental_yield_houses": "4.69%",
+      "rental_yield_units": "5.27%",
+      "median_weekly_rent_houses": 550,
+      "median_weekly_rent_units": 492,
+      "sales_volume_houses_12m": 158,
+      "sales_volume_units_12m": 24,
+      "stock_on_market": "0.38%",
+      "inventory_months": 0.66,
+      "vacancy_rate": "2.29%"
+    },
+    "environment": {
+      "flood_risk": {
+        "gawler_river_proximity": "Yes - part of Gawler River catchment",
+        "flood_mapping_available": "Yes - via WaterConnect Flood Awareness Map",
+        "risk_level": "Moderate - higher elevation than Angle Vale",
+        "recent_events": "2016 flood event affected broader Gawler River catchment",
+        "mitigation": "Gawler River Floodplain Management Authority coordinates flood mitigation"
+      },
+      "bushfire_risk": "Low - urban residential area",
+      "noise_pollution": "Moderate - near Northern Expressway and train line",
+      "air_quality": "Good - outer suburban location"
+    }
+  },
+  "sources": [
+    {
+      "type": "demographics",
+      "url": "https://www.abs.gov.au/census/find-census-data/quickstats/2021/SAL40979",
+      "accessed": "2025-08-07T14:30:00Z"
+    },
+    {
+      "type": "crime",
+      "url": "https://www.police.sa.gov.au/about-us/crime-statistics-map",
+      "accessed": "2025-08-07T14:30:00Z"
+    },
+    {
+      "type": "education",
+      "url": "https://www.education.sa.gov.au/parents-and-families/find-schools-preschools-and-other-services/munno-para-primary-school",
+      "accessed": "2025-08-07T14:30:00Z"
+    },
+    {
+      "type": "transport",
+      "url": "https://www.adelaidemetro.com.au/",
+      "accessed": "2025-08-07T14:30:00Z"
+    },
+    {
+      "type": "development",
+      "url": "https://playford.engagementhub.com.au/2024-25-draft-business-plans",
+      "accessed": "2025-08-07T14:30:00Z"
+    },
+    {
+      "type": "property_market",
+      "url": "https://www.yourinvestmentpropertymag.com.au/top-suburbs/sa/5115-munno-para",
+      "accessed": "2025-08-07T14:30:00Z"
+    },
+    {
+      "type": "flood_mapping",
+      "url": "https://www.waterconnect.sa.gov.au/Systems/FAM/SitePages/Home.aspx",
+      "accessed": "2025-08-07T14:30:00Z"
+    }
+  ]
+}

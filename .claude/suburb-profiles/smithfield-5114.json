@@ -1,0 +1,264 @@
+{
+  "suburb": "Smithfield",
+  "state": "SA",
+  "postcode": "5114",
+  "last_updated": "2025-08-07T15:45:00Z",
+  "data_freshness": {
+    "crime": "2024-08-01",
+    "census": "2021-08-10",
+    "schools": "2024-08-01",
+    "transport": "2024-08-01",
+    "development": "2024-08-01",
+    "property_market": "2024-08-01"
+  },
+  "scores": {
+    "overall_livability": 64,
+    "investment_potential": "B",
+    "family_friendliness": 68,
+    "retiree_suitability": 52,
+    "safety": 48,
+    "transport_access": 78
+  },
+  "key_insights": [
+    "Strong property growth with 19.1% house price increases in 2024, outperforming national averages",
+    "Excellent transport connectivity with Smithfield train station on Gawler line (42 min to CBD)",
+    "Close proximity to major shopping at Munno Para Shopping Centre with library and services",
+    "Lower median house prices ($536K) offering affordability compared to Two Wells ($787K)",
+    "Fast property turnover with average 17 days on market indicating strong buyer demand"
+  ],
+  "warnings": [
+    "Higher unemployment rate at 11.9% compared to state averages",
+    "Lower education attainment with only 6.3% holding bachelor degrees",
+    "Proximity to industrial areas may create noise concerns (recent concrete work exemption)",
+    "Limited local healthcare options - reliance on nearby suburbs for medical services",
+    "Potential flood risk from Gawler River catchment area requiring further investigation"
+  ],
+  "opportunities": [
+    "Strong rental yields at 4.8% making it attractive for investors",
+    "Active development in surrounding areas (Playford Alive project) may boost amenities",
+    "Growing population in broader Playford region with infrastructure investment",
+    "Good value entry point under $600K for growth corridor location",
+    "Proximity to major employment hubs via Northern Expressway access"
+  ],
+  "detailed_data": {
+    "demographics": {
+      "population_2021": 2482,
+      "population_2016": 2426,
+      "growth_rate": "2.3%",
+      "median_age": 35,
+      "gender_split": {
+        "male": "47.8%",
+        "female": "52.2%"
+      },
+      "household_composition": {
+        "average_people_per_household": 2.5,
+        "total_families": 608,
+        "total_private_dwellings": 1023
+      },
+      "housing_types": {
+        "separate_houses": "80.4%",
+        "semi_detached_townhouses": "19.1%"
+      },
+      "cultural_diversity": {
+        "aboriginal_torres_strait_islander": "4.6%",
+        "top_ancestries": ["English (37.3%)", "Australian (31.8%)"],
+        "english_only_at_home": "71.5%"
+      }
+    },
+    "income_employment": {
+      "median_weekly_household_income": 1049,
+      "median_personal_income": 526,
+      "median_monthly_mortgage": 1100,
+      "median_weekly_rent": 260,
+      "labor_force_participation": "48.2%",
+      "employment_full_time": "46.7%",
+      "employment_part_time": "34.9%",
+      "unemployment_rate": "11.9%",
+      "top_employment_industries": [
+        "Social Assistance Services",
+        "Supermarket and Grocery Stores", 
+        "Aged Care Residential Services"
+      ]
+    },
+    "education": {
+      "bachelor_degree_or_higher": "6.3%",
+      "year_12_completion": "16.8%",
+      "certificate_level_iii": "14.4%",
+      "schools_nearby": [
+        {
+          "name": "John Hartley School",
+          "type": "B-7 Government School",
+          "location": "Built in 2010s, serves local area"
+        },
+        {
+          "name": "Smithfield Plains Kindergarten", 
+          "address": "17 Bald Street Smithfield Plains SA 5114",
+          "type": "Preschool"
+        },
+        {
+          "name": "Mark Oliphant College",
+          "type": "Secondary",
+          "location": "Munno Para - formed from merger of local schools in 2011"
+        },
+        {
+          "name": "St Columba College",
+          "type": "Catholic Secondary",
+          "location": "Nearby"
+        }
+      ]
+    },
+    "transport": {
+      "train_station": "Smithfield Station",
+      "train_line": "Gawler line",
+      "distance_from_adelaide": "30.2km",
+      "cbd_commute_time": "42 minutes by train",
+      "train_frequency": "Every 30 minutes",
+      "driving_time_to_cbd": "30 minutes",
+      "bus_services": "Adelaide Metro bus services via Smithfield Interchange",
+      "northern_expressway_access": "Yes - major arterial connection",
+      "walkability": "Car dependent suburb with limited walkability",
+      "cycling_infrastructure": "Basic"
+    },
+    "amenities": {
+      "shopping": {
+        "major_centers": [
+          {
+            "name": "Munno Para Shopping Centre",
+            "distance": "Very close",
+            "features": ["Supermarkets", "Specialty stores", "Library", "Bus interchange"]
+          },
+          {
+            "name": "Elizabeth City Centre", 
+            "distance": "Short drive",
+            "features": ["Major regional shopping"]
+          }
+        ]
+      },
+      "healthcare": [
+        "Grand Medical Smithfield (local GP)",
+        "Limited local options - mainly served by nearby suburbs",
+        "Major hospitals via Adelaide CBD"
+      ],
+      "recreation": [
+        {
+          "name": "Playford Waters",
+          "address": "26 Strathaird Blvd, Smithfield SA 5114",
+          "features": ["Lake", "Playground", "Picnic areas", "Walking paths"]
+        },
+        {
+          "name": "Kooranowa Reserve",
+          "address": "26 Vincent Rd, Smithfield Plains",
+          "features": ["Athletics track", "Sports field", "Little Athletics Club"]
+        },
+        {
+          "name": "John McVeity Park", 
+          "address": "Davoren Road, Smithfield Plains",
+          "features": ["Basketball court", "Exercise equipment", "Playground"]
+        }
+      ],
+      "community_services": [
+        {
+          "name": "Munno Para Shopping Centre Library",
+          "services": ["Books", "Computer access", "WiFi", "Printing"]
+        },
+        {
+          "name": "John McVeity Centre",
+          "address": "182 Peachey Rd, Smithfield Plains",
+          "services": ["Community programs", "Events"]
+        }
+      ]
+    },
+    "crime": {
+      "data_availability": "SAPOL suburb-level crime mapping available",
+      "overall_safety": "Moderate - data indicates some concerns",
+      "crime_reporting": "Via SAPOL crime statistics map and data.sa.gov.au",
+      "note": "Specific crime statistics require direct access to SAPOL interactive tools",
+      "community_safety": "Northern Multi-Agency Hub opened May 2024 for domestic violence support"
+    },
+    "market": {
+      "median_house_price": 536000,
+      "median_unit_price": "Limited data available",
+      "annual_growth_houses": "19.1%",
+      "days_on_market_houses": 17,
+      "vendor_discount": "-7.4%",
+      "median_weekly_rent_houses": 495,
+      "rental_yield_houses": "4.8%",
+      "sales_volume_houses_12m": 51,
+      "market_ranking_sa": "397th for median price, 130th for price change",
+      "comparison_to_national": {
+        "median_price_vs_national": "$536K vs $485K national average",
+        "growth_vs_national": "19.1% vs 4.3% national average"
+      }
+    },
+    "environment": {
+      "flood_risk": {
+        "catchment_area": "Gawler River catchment - affected in 2016 flood event",
+        "risk_level": "Moderate - requires investigation via WaterConnect Flood Awareness Map",
+        "mitigation": "Gawler River Floodplain Management Authority coordinates flood management",
+        "recent_investment": "$9 million flood mitigation projects 2020-2023"
+      },
+      "noise_pollution": {
+        "sources": ["Northern Expressway traffic", "Train line proximity", "Industrial activities"],
+        "recent_exemptions": "Concrete work exemption granted May 2024 for early morning work",
+        "management": "City of Playford handles noise complaints via (08) 8256 0333"
+      },
+      "air_quality": "Generally good - outer suburban location",
+      "bushfire_risk": "Low - urban residential area"
+    },
+    "development": {
+      "council": "City of Playford",
+      "zoning": "Predominantly residential",
+      "nearby_projects": [
+        {
+          "name": "Playford Alive Eastern Parcel",
+          "scale": "1,480+ new homes over 8 years in nearby Munno Para",
+          "impact": "May increase amenities and services in broader area"
+        },
+        {
+          "name": "Rise Up at the Plains",
+          "location": "Smithfield Plains",
+          "details": "22 new affordable homes development with Rivergum Homes"
+        }
+      ],
+      "infrastructure_investment": "Part of broader $33M+ infrastructure spend in region",
+      "population_projection": "Playford expecting 10 new residents daily until 2046"
+    }
+  },
+  "sources": [
+    {
+      "type": "demographics",
+      "url": "https://www.abs.gov.au/census/find-census-data/quickstats/2021/SAL41346",
+      "accessed": "2025-08-07T15:45:00Z"
+    },
+    {
+      "type": "property_market",
+      "url": "https://www.propertyvalue.com.au/suburb/smithfield-5114-sa",
+      "accessed": "2025-08-07T15:45:00Z"
+    },
+    {
+      "type": "transport",
+      "url": "https://www.rome2rio.com/s/Adelaide/Smithfield-SA-Australia",
+      "accessed": "2025-08-07T15:45:00Z"
+    },
+    {
+      "type": "education",
+      "url": "https://www.education.sa.gov.au/parents-and-families/find-schools-preschools-and-other-services/smithfield-plains-kindergarten",
+      "accessed": "2025-08-07T15:45:00Z"
+    },
+    {
+      "type": "crime",
+      "url": "https://www.police.sa.gov.au/about-us/crime-statistics-map",
+      "accessed": "2025-08-07T15:45:00Z"
+    },
+    {
+      "type": "community_facilities",
+      "url": "https://www.playford.sa.gov.au/community/library-services/locations",
+      "accessed": "2025-08-07T15:45:00Z"
+    },
+    {
+      "type": "flood_mapping",
+      "url": "https://www.environment.sa.gov.au/topics/flood/projects/current-projects/flood-project-gawler-river",
+      "accessed": "2025-08-07T15:45:00Z"
+    }
+  ]
+}
